@@ -1,0 +1,14 @@
+{
+  "name": "premortem-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test ledger.test.js",
+    "test:ui": "node --test ui.test.js",
+    "test:prompt": "node --test prompt.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^27.0.0"
+  }
+}

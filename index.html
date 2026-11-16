@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Premortem Ledger — find the assumption that kills the plan</title>
+<meta name="description" content="Paste a plan. A Pollinations model writes the story of how it failed, then extracts the assumptions that killed it, each with an early signal and a cheap test you can run this week." />
+<style>
+  :root { --bg:#0b0d15; --panel:#141828; --edge:#242a44; --dim:#8b90b0; --txt:#e8ebf7;
+          --bad:#ff8a8a; --good:#6ee7a0; --warn:#ffd479; --acc:#8ba6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:22px 16px 70px; background:var(--bg); color:var(--txt);
+         font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .sub { color:var(--dim); font-size:13px; margin-bottom:18px; max-width:75ch; }
+  .card { background:var(--panel); border:1px solid var(--edge); border-radius:14px; padding:16px; margin-bottom:14px; }
+  label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:0 0 6px; }
+  textarea, input, select { width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--edge);
+                            background:#0e1220; color:var(--txt); font-size:14px; font-family:inherit; }
+  textarea { min-height:120px; resize:vertical; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .row .grow { flex:1 1 420px; }
+  .row .side { flex:0 0 190px; }
+  button { padding:11px 18px; border:0; border-radius:10px; background:linear-gradient(135deg,#4f6ef7,#7c5cff);
+           color:#fff; font-weight:650; font-size:14px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:#242a44; font-weight:500; }
+  #status { font-size:13px; color:var(--dim); min-height:20px; margin-top:10px; }
+  #status.err { color:var(--bad); } #status.ok { color:var(--good); }
+  .hint { font-size:12px; color:var(--dim); margin-top:10px; }
+  .hint b { color:#b9bfdd; }
+  .examples { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .chip { font-size:12px; padding:5px 10px; border-radius:999px; background:#1b2038; border:1px solid var(--edge);
+          color:#b9bfdd; cursor:pointer; }
+  .chip:hover { background:#242a49; }
+  #out { display:none; }
+  h2 { font-size:16px; margin:0 0 4px; }
+  .lede { color:var(--dim); font-size:13px; margin:0 0 14px; }
+  .postmortem { border-left:3px solid #5a2530; padding:10px 0 10px 14px; background:#150f16; border-radius:0 10px 10px 0;
+                font-size:14px; color:#d8c6c9; margin-bottom:18px; }
+  .postmortem b { color:var(--bad); }
+  .assump { border:1px solid var(--edge); border-radius:12px; padding:13px; margin-bottom:10px; background:#101426;
+            transition:.2s opacity,.2s border-color; }
+  .assump.dead { opacity:.55; border-color:#2a3a4a; }
+  .assump.tested { border-color:#1f5a45; }
+  .assump h3 { font-size:14px; margin:0 0 6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .risk { font-size:11px; padding:1px 8px; border-radius:999px; border:1px solid var(--edge); color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  .risk.high { color:var(--bad); border-color:#5a2530; }
+  .risk.medium { color:var(--warn); border-color:#5a4a25; }
+  .risk.low { color:var(--good); border-color:#1f5a45; }
+  .assump p { margin:0 0 6px; font-size:13px; color:#c8cde8; }
+  .assump .kv { font-size:12px; color:var(--dim); margin:2px 0; }
+  .assump .kv b { color:#b9bfdd; font-weight:600; }
+  .actions { display:flex; gap:8px; margin-top:9px; flex-wrap:wrap; }
+  .actions button { padding:7px 12px; font-size:12px; border-radius:8px; }
+  .tag { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--edge); color:var(--dim); }
+  .tag.dead { color:var(--bad); border-color:#5a2530; }
+  .tag.ok { color:var(--good); border-color:#1f5a45; }
+  .score { display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; font-size:13px; color:var(--dim); }
+  .score b { color:var(--txt); }
+  .warn { font-size:12px; color:var(--dim); margin-top:14px; }
+  .footer { font-size:12px; color:var(--dim); margin-top:22px; }
+  .footer a { color:#9fb4ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Premortem Ledger</h1>
+  <div class="sub">Paste a plan. A Pollinations model writes <b>how it failed</b> — then extracts the assumptions that killed it, each with an early signal and a cheap test you can actually run this week. You decide which assumptions survive contact with evidence.</div>
+
+  <div class="card">
+    <div class="row">
+      <div class="grow">
+        <label for="plan">The plan</label>
+        <textarea id="plan" placeholder="e.g. Ship the new onboarding flow in three weeks, using the existing auth service, without a migration."></textarea>
+      </div>
+      <div class="side">
+        <label for="horizon">Time horizon</label>
+        <select id="horizon">
+          <option value="2 weeks" selected>2 weeks</option>
+          <option value="3 months">3 months</option>
+          <option value="1 year">1 year</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="grow">
+        <label for="context">Constraints that matter (optional)</label>
+        <input id="context" type="text" placeholder="team of 2, no dedicated QA, must not break existing users" />
+      </div>
+    </div>
+    <div class="actions">
+      <button id="go">Run the premortem</button>
+      <button id="again" class="ghost" style="display:none">Run it again</button>
+    </div>
+    <div id="status"></div>
+    <div class="examples" id="examples"></div>
+    <div class="hint"><b>BYOP:</b> approve a scoped key on the Pollinations consent screen (5 Pollen, 7 days). One premortem is one chat completion billed to <b>your</b> Pollen.</div>
+  </div>
+
+  <div class="card">
+    <polli-connect app-key="pk_pyna0t04j07Wed6n" budget="5" expiry="7" models="text"></polli-connect>
+    <div class="hint">The failure story is generated; the assumption ledger is parsed from it and checked against the plan text. No generated code runs on this page.</div>
+  </div>
+
+  <div class="card" id="out">
+    <h2 id="ledgerTitle"></h2>
+    <p class="lede" id="ledgerLede"></p>
+    <div class="postmortem" id="story"></div>
+
+    <h2>Assumption ledger</h2>
+    <p class="lede">Mark each assumption as <b>tested</b> once you have evidence, or <b>killed</b> if the evidence contradicts it. Killed assumptions stay killed.</p>
+    <div id="assumptions"></div>
+    <div class="score" id="score"></div>
+
+    <div class="warn">Generated on request by a language model. The failure story is a hypothesis, not a forecast. An assumption that survives here has only survived <em>your</em> evidence so far.</div>
+  </div>
+
+  <div class="footer">
+    Open source: <a href="https://github.com/measurerain-hash/premortem-ledger" target="_blank" rel="noreferrer noopener">measurerain-hash/premortem-ledger</a>
+  </div>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/@pollinations/ui@0.1.0-alpha.20/dist/connect.js"></script>
+<script src="pollinations-client.js"></script>
+<script src="ledger.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
