@@ -5,7 +5,8 @@
 
     function getKey() {
         const c = document.querySelector("polli-connect");
-        return (c && c.apiKey) || sessionStorage.getItem("polli_byop_key") || "";
+        // Consent-screen key only: visitors never paste a secret key by hand.
+        return (c && c.apiKey) || "";
     }
     function setStatus(text, cls) {
         const s = el("status");

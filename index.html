@@ -101,6 +101,17 @@
 
   <div class="card">
     <polli-connect app-key="pk_pyna0t04j07Wed6n" budget="5" expiry="7" models="text"></polli-connect>
+    <script>
+      // The consent screen checks the redirect against the key, so each origin gets its own
+      // publishable key. Runs before connect.js (defer) upgrades the element.
+      (function () {
+        var el = document.querySelector("polli-connect");
+        if (!el) return;
+        if (location.hostname.endsWith("github.io")) {
+          el.setAttribute("app-key", "pk_ONGv1ReF6hvDzgis");
+        }
+      })();
+    </script>
     <div class="hint">The failure story is generated; the assumption ledger is parsed from it and checked against the plan text. No generated code runs on this page.</div>
   </div>
 

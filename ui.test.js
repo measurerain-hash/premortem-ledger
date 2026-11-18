@@ -25,7 +25,8 @@ function boot() {
     const { window } = dom;
     window.eval(readFileSync("ledger.js", "utf8"));
     window.PolliClient = { chatCompletion: async () => JSON.stringify(LEDGER) };
-    window.sessionStorage.setItem("polli_byop_key", "sk_test");
+    // A key can only arrive from the consent screen now, so fake the widget, not storage.
+    window.document.querySelector("polli-connect").apiKey = "pk_test_consent";
     window.eval(readFileSync("app.js", "utf8"));
     // run() requires a sentence-length plan; every test uses the same one.
     window.document.getElementById("plan").value =
@@ -102,4 +103,14 @@ test("blocks a plan that is too short", async () => {
     w.document.getElementById("go").click();
     await tick();
     assert.match(w.document.getElementById("status").textContent, /at least a sentence/);
+});
+
+test("a key sitting in sessionStorage does not count as connected", async () => {
+    const w = boot();
+    w.document.querySelector("polli-connect").apiKey = "";
+    w.sessionStorage.setItem("polli_byop_key", "sk_pasted");
+    w.document.getElementById("plan").value = "Ship the onboarding flow in three weeks with a two-person team.";
+    w.document.getElementById("go").click();
+    await tick();
+    assert.match(w.document.getElementById("status").textContent, /press Connect/);
 });
